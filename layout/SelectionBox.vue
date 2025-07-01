@@ -97,12 +97,7 @@ export default {
         // 如果点击在可选择元素上，不处理空白区域点击
         return
       }
-
-      // 检查是否点击在容器内
-      if (this.$refs.container.contains(event.target)) {
-        this.$emit('empty-click', event)
-
-      }
+   
     },
 
     // 开始框选

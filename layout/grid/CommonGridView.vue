@@ -33,21 +33,9 @@
             @dblclick="$emit('item-double-click', item)"
             @contextmenu="handleItemContextMenu(item, $event)"
           >
+            <!-- 完全由插槽控制项目内容 -->
             <slot name="item" :item="item" :index="index" :selected="isItemSelected(item)">
-              <!-- 默认网格项内容 -->
-              <div class="item-content">
-                <div class="item-thumbnail">
-                  <slot name="icon" :item="item">
-                    <div class="w-8 h-8 bg-gray-300 rounded"></div>
-                  </slot>
-                </div>
-                <div class="item-info">
-                  <div class="item-name" :title="getItemName(item)">{{ getItemName(item) }}</div>
-                  <div class="item-details" v-if="gridSize !== 'small'">
-                    <span class="item-size">{{ getItemSize(item) }}</span>
-                  </div>
-                </div>
-              </div>
+              <!-- 如果没有提供插槽内容，显示空内容 -->
             </slot>
           </div>
         </div>
@@ -103,18 +91,6 @@ export default {
       type: Function,
       default: (item) => item.id || item.path || item.name
     },
-    // 获取项目名称的函数
-    getItemName: {
-      type: Function,
-      default: (item) => item.name || item.title || '未命名'
-    },
-    // 获取项目大小的函数
-    getItemSize: {
-      type: Function,
-      default: function(item) { 
-        return item.size ? this.formatFileSize(item.size) : '-'
-      }
-    },
     // 是否启用多选
     multiSelect: {
       type: Boolean,
@@ -147,22 +123,6 @@ export default {
   },
 
   methods: {
-    // 格式化文件大小
-    formatFileSize(size) {
-      if (!size || size === 0) return '-'
-      
-      const units = ['B', 'KB', 'MB', 'GB', 'TB']
-      let unitIndex = 0
-      let fileSize = size
-      
-      while (fileSize >= 1024 && unitIndex < units.length - 1) {
-        fileSize /= 1024
-        unitIndex++
-      }
-      
-      return `${fileSize.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`
-    },
-
     // 检查项目是否被选中
     isItemSelected(item) {
       return this.selectedItems.some(selected => this.getItemKey(selected) === this.getItemKey(item))
@@ -178,6 +138,7 @@ export default {
       return element.dataset.itemKey
     },
 
+    // 处理框选完成事件
     handleBoxSelectionFinished(selectedElements) {
       const selectedItems = []
       
@@ -188,12 +149,11 @@ export default {
         }
       })
 
+      // 发送选择完成事件
       this.$emit('selection-finished', selectedItems)
-      if (selectedItems.length === 0) {
-        console.log("清空选择")
-      }
     },
 
+    // 处理框选清空事件
     handleBoxSelectionCleared() {
       // 框选开始时清空选择
       this.$emit('selection-cleared', [])
@@ -330,11 +290,16 @@ export default {
   gap: 12px;
 }
 
-/* 小图标网格 */
+/* 小图标网格 - 接近正方形 */
 .grid-size-small .grid-container {
   grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
   gap: 6px;
   padding: 4px;
+}
+
+.grid-size-small .grid-item {
+  aspect-ratio: 1;
+  max-height: 75px;
 }
 
 /* 中等图标网格 */
@@ -356,6 +321,7 @@ export default {
   @apply bg-transparent border border-transparent;
   @apply hover:bg-gray-50 dark:hover:bg-gray-700;
   @apply hover:transform hover:scale-105;
+  min-height: 0;
 }
 
 .grid-item.selected {
@@ -371,65 +337,9 @@ export default {
   @apply text-white;
 }
 
-.item-content {
-  @apply flex flex-col items-center w-full;
-}
-
-.item-thumbnail {
-  @apply flex items-center justify-center mb-2;
-}
-
-/* 不同尺寸的缩略图 */
-.grid-size-small .item-thumbnail {
-  @apply mb-1;
-}
-
-.grid-size-medium .item-thumbnail {
-  @apply mb-2;
-}
-
-.grid-size-large .item-thumbnail {
-  @apply mb-3;
-}
-
-.item-info {
-  @apply text-center w-full;
-}
-
-.item-name {
-  @apply font-normal text-gray-900 dark:text-gray-100 mb-1;
-  @apply whitespace-nowrap overflow-hidden text-ellipsis;
-  @apply text-center max-w-full;
-}
-
-/* 不同尺寸的文字 */
-.grid-size-small .item-name {
-  @apply text-xs;
-}
-
-.grid-size-medium .item-name {
-  @apply text-sm;
-}
-
-.grid-size-large .item-name {
-  @apply text-base;
-}
-
-.item-details {
-  @apply text-xs text-gray-600 dark:text-gray-400 text-center;
-}
-
-.grid-size-large .item-details {
-  @apply text-sm;
-}
-
-.item-size {
-  @apply whitespace-nowrap;
-}
-
 /* 深色主题下的选中样式 */
 .dark .grid-item.selected {
-  @apply bg-blue-600 text-gray-900;
+  @apply bg-blue-600 text-white;
 }
 
 .dark .grid-item.selected:hover {
@@ -437,7 +347,7 @@ export default {
 }
 
 .dark .grid-item.selected * {
-  @apply text-gray-900;
+  @apply text-white;
 }
 
 /* 右键菜单样式 */

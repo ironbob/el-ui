@@ -23,12 +23,17 @@
     :grid-size="gridSize"
     :multi-select="true"
     :enable-box-selection="true"
-    @selection-changed="handleSelectionChanged"
+    :get-item-key="getItemKey"
+    @selection-finished="handleSelectionFinished"
+    @selection-cleared="handleSelectionCleared"
     @item-click="handleItemClick"
   >
-    <!-- 自定义图标 -->
-    <template #icon="{ item }">
-      <FileIcon :file="item" :size="32" />
+    <!-- 自定义项目内容 -->
+    <template #item="{ item, index, selected }">
+      <div class="item-content">
+        <FileIcon :file="item" :size="32" />
+        <div class="item-name">{{ item.name }}</div>
+      </div>
     </template>
   </CommonGridView>
 </template>
@@ -51,8 +56,14 @@ export default {
     }
   },
   methods: {
-    handleSelectionChanged(items) {
+    getItemKey(item) {
+      return item.id
+    },
+    handleSelectionFinished(items) {
       this.selectedItems = items
+    },
+    handleSelectionCleared() {
+      this.selectedItems = []
     },
     handleItemClick(item, event) {
       console.log('点击了:', item)
@@ -70,8 +81,6 @@ export default {
 | `selectedItems` | Array | `[]` | 当前选中的项目数组 |
 | `gridSize` | String | `'medium'` | 网格尺寸：`'small'`、`'medium'`、`'large'` |
 | `getItemKey` | Function | `(item) => item.id \|\| item.path \|\| item.name` | 获取项目唯一键的函数 |
-| `getItemName` | Function | `(item) => item.name \|\| item.title \|\| '未命名'` | 获取项目名称的函数 |
-| `getItemSize` | Function | `(item) => formatFileSize(item.size)` | 获取项目大小的函数 |
 | `multiSelect` | Boolean | `true` | 是否启用多选 |
 | `enableBoxSelection` | Boolean | `true` | 是否启用框选 |
 
@@ -79,36 +88,30 @@ export default {
 
 | 事件名 | 参数 | 说明 |
 |--------|------|------|
-| `selection-changed` | `(items: Array)` | 选择变化时触发 |
+| `selection-finished` | `(items: Array)` | 框选完成或点击选择完成时触发 |
+| `selection-cleared` | `(items: Array)` | 框选开始时触发，用于清空之前的选择 |
 | `item-click` | `(item: Object, event: Event)` | 项目点击时触发 |
 | `item-double-click` | `(item: Object)` | 项目双击时触发 |
 | `item-context-menu` | `(item: Object, selectedItems: Array, event: Event)` | 项目右键菜单时触发 |
 | `context-menu` | `(item: Object, items: Array, event: Event)` | 空白区域右键菜单时触发 |
 | `empty-click` | `(event: Event)` | 空白区域点击时触发 |
-| `selection-finished` | `(items: Array)` | 框选完成时触发 |
-| `selection-cleared` | `(items: Array)` | 框选清空时触发 |
 
 ## Slots
 
-### `icon` 插槽
-
-用于自定义项目图标。
-
-```vue
-<template #icon="{ item }">
-  <FileIcon :file="item" :size="32" />
-</template>
-```
-
 ### `item` 插槽
 
-用于完全自定义项目内容。
+用于自定义项目内容。这是主要的插槽，用于展示项目的完整内容。
 
 ```vue
 <template #item="{ item, index, selected }">
-  <div class="custom-item">
-    <img :src="item.thumbnail" />
-    <span>{{ item.name }}</span>
+  <div class="item-content">
+    <div class="item-thumbnail">
+      <FileIcon :file="item" :size="32" />
+    </div>
+    <div class="item-info">
+      <div class="item-name">{{ item.name }}</div>
+      <div class="item-details">{{ formatFileSize(item.size) }}</div>
+    </div>
   </div>
 </template>
 ```
@@ -130,6 +133,7 @@ export default {
 
 ### 小尺寸 (small)
 - 网格列宽：最小 75px
+- 网格高度：接近正方形（aspect-ratio: 1）
 - 图标尺寸：24px
 - 文字大小：12px
 - 不显示详细信息
@@ -208,8 +212,17 @@ import CommonGridView from '@/el-ui/layout/grid/CommonGridView.vue'
   :items="files"
   :selected-items="selectedFiles"
   :grid-size="gridSize"
-  @selection-changed="handleSelectionChanged"
-/>
+  :get-item-key="getItemKey"
+  @selection-finished="handleSelectionFinished"
+  @selection-cleared="handleSelectionCleared"
+>
+  <template #item="{ item, index, selected }">
+    <div class="item-content">
+      <FileIcon :file="item" :size="32" />
+      <div class="item-name">{{ item.name }}</div>
+    </div>
+  </template>
+</CommonGridView>
 ```
 
 3. 更新事件处理：
@@ -220,8 +233,12 @@ handleFileClick(file, event) {
 }
 
 // 新版
-handleSelectionChanged(items) {
+handleSelectionFinished(items) {
   this.selectedFiles = items
+}
+
+handleSelectionCleared() {
+  this.selectedFiles = []
 }
 ```
 

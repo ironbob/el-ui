@@ -35,19 +35,26 @@
         :multi-select="enableMultiSelect"
         :enable-box-selection="enableBoxSelection"
         :get-item-key="getItemKey"
-        :get-item-name="getItemName"
-        :get-item-size="getItemSize"
-        @selection-changed="handleSelectionChanged"
+        @selection-finished="handleSelectionFinished"
+        @selection-cleared="handleSelectionCleared"
         @item-click="handleItemClick"
         @item-double-click="handleItemDoubleClick"
         @context-menu="handleContextMenu"
         @item-context-menu="handleItemContextMenu"
         @empty-click="handleEmptyClick"
       >
-        <!-- 自定义图标插槽 -->
-        <template #icon="{ item }">
-          <div class="test-icon" :style="{ backgroundColor: getIconColor(item.type) }">
-            {{ item.type.charAt(0).toUpperCase() }}
+        <!-- 自定义项目内容插槽 -->
+        <template #item="{ item, index, selected }">
+          <div class="test-item-content">
+            <div class="test-icon" :style="{ backgroundColor: getIconColor(item.type) }">
+              {{ item.type.charAt(0).toUpperCase() }}
+            </div>
+            <div class="test-item-info">
+              <div class="test-item-name" :title="item.name">{{ item.name }}</div>
+              <div class="test-item-details" v-if="currentGridSize !== 'small'">
+                <span class="test-item-size">{{ formatFileSize(item.size) }}</span>
+              </div>
+            </div>
           </div>
         </template>
 
@@ -106,6 +113,11 @@ export default {
         { id: 8, name: 'PDF文件.pdf', size: 3072000, type: 'pdf' },
         { id: 9, name: '表格.xlsx', size: 1536000, type: 'spreadsheet' },
         { id: 10, name: '演示文稿.pptx', size: 4096000, type: 'presentation' },
+        { id: 11, name: '文本文件.txt', size: 512, type: 'text' },
+        { id: 12, name: '数据库.db', size: 2048576, type: 'database' },
+        { id: 13, name: '配置文件.ini', size: 256, type: 'config' },
+        { id: 14, name: '日志文件.log', size: 1024, type: 'log' },
+        { id: 15, name: '备份文件.bak', size: 8192, type: 'backup' },
       ],
       // 选中的项目
       selectedItems: [],
@@ -121,16 +133,6 @@ export default {
     // 获取项目唯一键
     getItemKey(item) {
       return item.id
-    },
-
-    // 获取项目名称
-    getItemName(item) {
-      return item.name
-    },
-
-    // 获取项目大小
-    getItemSize(item) {
-      return this.formatFileSize(item.size)
     },
 
     // 格式化文件大小
@@ -161,15 +163,26 @@ export default {
         folder: '#ff9800',
         pdf: '#f44336',
         spreadsheet: '#4caf50',
-        presentation: '#2196f3'
+        presentation: '#2196f3',
+        text: '#607d8b',
+        database: '#795548',
+        config: '#9e9e9e',
+        log: '#ff5722',
+        backup: '#673ab7'
       }
       return colors[type] || '#757575'
     },
 
-    // 处理选择变化
-    handleSelectionChanged(items) {
+    // 处理选择完成事件
+    handleSelectionFinished(items) {
       this.selectedItems = items
-      console.log('选择变化:', items)
+      console.log('选择完成:', items)
+    },
+
+    // 处理选择清空事件
+    handleSelectionCleared() {
+      this.selectedItems = []
+      console.log('选择清空')
     },
 
     // 处理项目点击
@@ -236,10 +249,41 @@ export default {
   @apply text-sm text-gray-600 dark:text-gray-400 mb-1;
 }
 
+.test-item-content {
+  @apply flex flex-col items-center w-full h-full;
+  min-height: 0;
+}
+
 .test-icon {
   @apply flex items-center justify-center text-white font-bold rounded;
   width: 32px;
   height: 32px;
+  flex-shrink: 0;
+}
+
+.test-item-info {
+  @apply text-center w-full;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.test-item-name {
+  @apply font-normal text-gray-900 dark:text-gray-100 mb-1;
+  @apply whitespace-nowrap overflow-hidden text-ellipsis;
+  @apply text-center max-w-full;
+  line-height: 1.2;
+}
+
+.test-item-details {
+  @apply text-xs text-gray-600 dark:text-gray-400 text-center;
+  flex-shrink: 0;
+}
+
+.test-item-size {
+  @apply whitespace-nowrap;
 }
 
 .test-context-menu {
