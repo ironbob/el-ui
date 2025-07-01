@@ -28,7 +28,8 @@
         :get-selectable-elements="getSelectableElements"
         :get-element-key="getElementKey"
         :multi-select="multiSelect"
-        @selection-changed="handleBoxSelectionChanged"
+        @selection-finished="handleBoxSelectionFinished"
+        @selection-cleared="handleBoxSelectionCleared"
         @empty-click="handleEmptyClick"
       >
         <!-- 列表内容 -->
@@ -233,8 +234,7 @@ export default {
       return element.dataset.itemKey
     },
 
-    // 处理框选变化
-    handleBoxSelectionChanged(selectedElements) {
+    handleBoxSelectionFinished(selectedElements) {
       const selectedItems = []
       
       selectedElements.forEach(({ key }) => {
@@ -244,8 +244,15 @@ export default {
         }
       })
 
-      this.$emit('selection-changed', selectedItems)
-      console.log("handleBoxSelectionChanged", selectedItems)
+      this.$emit('selection-finished', selectedItems)
+      if (selectedItems.length === 0) {
+        console.log("清空选择")
+      }
+    },
+
+    handleBoxSelectionCleared() {
+      // 框选开始时清空选择
+      this.$emit('selection-cleared', [])
     },
 
     // 处理空白区域点击

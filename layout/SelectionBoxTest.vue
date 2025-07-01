@@ -1,84 +1,63 @@
 <template>
   <div class="selection-box-test">
-    <h2>框选控件测试</h2>
+    <h2>SelectionBox 测试</h2>
     
-    <!-- 基本框选测试 -->
-    <div class="test-section">
-      <h3>基本框选测试</h3>
+    <div class="test-info">
+      <p><strong>测试说明：</strong></p>
+      <ul>
+        <li>✅ 框选过程中不会发送选择变化事件，节省资源</li>
+        <li>✅ 只在框选结束时发送最终结果</li>
+        <li>✅ 支持清空选择事件</li>
+        <li>✅ 支持空白区域点击事件</li>
+      </ul>
+    </div>
+
+    <div class="test-controls">
+      <button @click="clearLogs" class="btn">清空日志</button>
+      <button @click="toggleEnabled" class="btn">
+        {{ enabled ? '禁用' : '启用' }} 框选
+      </button>
+    </div>
+
+    <div class="test-container">
+      <!-- 使用 SelectionBox 组件 -->
       <SelectionBox
-        :enabled="true"
+        :enabled="enabled"
         :get-selectable-elements="getSelectableElements"
         :get-element-key="getElementKey"
-        @selection-changed="handleSelectionChanged"
+        :multi-select="true"
+        @selection-finished="handleSelectionFinished"
+        @selection-cleared="handleSelectionCleared"
         @empty-click="handleEmptyClick"
       >
-        <div class="test-container">
+        <div class="test-grid">
           <div
             v-for="item in testItems"
             :key="item.id"
             class="test-item"
             :data-selectable="true"
-            :data-key="item.id"
-            :class="{ selected: selectedItems.includes(item.id) }"
-            @click="handleItemClick(item, $event)"
+            :data-item-key="item.id"
           >
             <div class="item-icon">{{ item.icon }}</div>
             <div class="item-name">{{ item.name }}</div>
           </div>
         </div>
       </SelectionBox>
-      
-      <div class="selection-info">
-        选中项目: {{ selectedItems.join(', ') || '无' }}
-      </div>
     </div>
 
-    <!-- CommonListView 测试 -->
-    <div class="test-section">
-      <h3>CommonListView 框选测试</h3>
-      <CommonListView
-        :items="listItems"
-        :selected-items="selectedListItems"
-        :enable-box-selection="true"
-        :multi-select="true"
-        @selection-changed="handleListSelectionChanged"
-        @item-click="handleListItemClick"
-        @empty-click="handleListEmptyClick"
-        @context-menu="handleListContextMenu"
-        @item-context-menu="handleListItemContextMenu"
-      >
-        <template #item="{ item, selected }">
-          <div class="item-content">
-            <div class="item-cell name-cell">
-              <div class="item-icon">
-                <span>{{ item.icon }}</span>
-              </div>
-              <span class="item-name">{{ item.name }}</span>
-            </div>
-            <div class="item-cell size-cell">
-              {{ item.size }}
-            </div>
-            <div class="item-cell type-cell">
-              {{ item.type }}
-            </div>
-            <div class="item-cell date-cell">
-              {{ item.date }}
-            </div>
-          </div>
-        </template>
-      </CommonListView>
-      
-      <div class="selection-info">
-        选中项目: {{ selectedListItems.map(item => item.name).join(', ') || '无' }}
-      </div>
-    </div>
-
-    <!-- 右键菜单测试 -->
-    <div class="test-section">
-      <h3>右键菜单测试</h3>
-      <div class="context-menu-info">
-        <p>在列表项上右键点击测试上下文菜单</p>
-        <p>在空白区域右键点击测试空白区域菜单</p>
+    <div class="test-logs">
+      <h3>事件日志：</h3>
+      <div class="log-container">
+        <div
+          v-for="(log, index) in logs"
+          :key="index"
+          class="log-item"
+          :class="log.type"
+        >
+          <span class="log-time">{{ log.time }}</span>
+          <span class="log-event">{{ log.event }}</span>
+          <span class="log-data">{{ log.data }}</span>
+        </div>
       </div>
     </div>
   </div>
@@ -86,92 +65,94 @@
 
 <script>
 import SelectionBox from './SelectionBox.vue'
-import CommonListView from './CommonListView.vue'
 
 export default {
   name: 'SelectionBoxTest',
   components: {
-    SelectionBox,
-    CommonListView
+    SelectionBox
   },
-
   data() {
     return {
-      // 基本框选测试数据
+      enabled: true,
+      logs: [],
       testItems: [
-        { id: '1', name: '文件1', icon: '📄' },
-        { id: '2', name: '文件2', icon: '📄' },
+        { id: '1', name: '文件1.txt', icon: '📄' },
+        { id: '2', name: '文件2.jpg', icon: '🖼️' },
         { id: '3', name: '文件夹1', icon: '📁' },
-        { id: '4', name: '文件3', icon: '📄' },
-        { id: '5', name: '文件夹2', icon: '📁' },
-        { id: '6', name: '文件4', icon: '📄' },
-        { id: '7', name: '文件5', icon: '📄' },
-        { id: '8', name: '文件夹3', icon: '📁' }
-      ],
-      selectedItems: [],
-
-      // CommonListView 测试数据
-      listItems: [
-        { id: '1', name: '文档1.txt', size: '1.2 KB', type: '文本文件', date: '2024-01-15', icon: '📄' },
-        { id: '2', name: '图片1.jpg', size: '2.5 MB', type: '图片文件', date: '2024-01-14', icon: '🖼️' },
-        { id: '3', name: '项目文件夹', size: '-', type: '文件夹', date: '2024-01-13', icon: '📁' },
-        { id: '4', name: '视频1.mp4', size: '15.7 MB', type: '视频文件', date: '2024-01-12', icon: '🎥' },
-        { id: '5', name: '音乐1.mp3', size: '3.8 MB', type: '音频文件', date: '2024-01-11', icon: '🎵' },
-        { id: '6', name: '压缩包.zip', size: '8.2 MB', type: '压缩文件', date: '2024-01-10', icon: '📦' },
-        { id: '7', name: '代码.js', size: '2.1 KB', type: '代码文件', date: '2024-01-09', icon: '💻' },
-        { id: '8', name: '数据.xlsx', size: '1.8 MB', type: '表格文件', date: '2024-01-08', icon: '📊' }
-      ],
-      selectedListItems: []
+        { id: '4', name: '文件3.pdf', icon: '📕' },
+        { id: '5', name: '文件4.mp3', icon: '🎵' },
+        { id: '6', name: '文件5.mp4', icon: '🎬' },
+        { id: '7', name: '文件夹2', icon: '📁' },
+        { id: '8', name: '文件6.zip', icon: '📦' },
+        { id: '9', name: '文件7.doc', icon: '📘' },
+        { id: '10', name: '文件8.xls', icon: '📊' },
+        { id: '11', name: '文件夹3', icon: '📁' },
+        { id: '12', name: '文件9.html', icon: '🌐' }
+      ]
     }
   },
-
   methods: {
-    // 基本框选测试方法
+    // 获取可选择元素
     getSelectableElements() {
       return this.$el.querySelectorAll('[data-selectable]')
     },
 
+    // 获取元素唯一标识
     getElementKey(element) {
-      return element.dataset.key
+      return element.dataset.itemKey
     },
 
-    handleSelectionChanged(selectedElements) {
-      this.selectedItems = selectedElements.map(({ key }) => key)
-      console.log('基本框选变化:', this.selectedItems)
+    // 处理框选结束事件
+    handleSelectionFinished(selectedElements) {
+      const selectedItems = selectedElements.map(({ key }) => {
+        return this.testItems.find(item => item.id === key)
+      }).filter(Boolean)
+
+      this.addLog('selection-finished', `选择了 ${selectedItems.length} 个项目`, 
+        selectedItems.map(item => item.name).join(', '))
+      
+      console.log('SelectionBoxTest: 框选结束，最终选择:', selectedItems.map(item => item.name))
     },
 
+    // 处理选择清空事件
+    handleSelectionCleared() {
+      this.addLog('selection-cleared', '清空选择', '')
+      console.log('SelectionBoxTest: 选择已清空')
+    },
+
+    // 处理空白区域点击
     handleEmptyClick(event) {
-      console.log('基本框选空白区域点击')
-      this.selectedItems = []
+      this.addLog('empty-click', '空白区域点击', `坐标: (${event.clientX}, ${event.clientY})`)
+      console.log('SelectionBoxTest: 空白区域点击')
     },
 
-    handleItemClick(item, event) {
-      console.log('基本框选项目点击:', item.name)
+    // 添加日志
+    addLog(type, event, data) {
+      const now = new Date()
+      const time = now.toLocaleTimeString()
+      
+      this.logs.unshift({
+        type,
+        time,
+        event,
+        data
+      })
+
+      // 限制日志数量
+      if (this.logs.length > 50) {
+        this.logs = this.logs.slice(0, 50)
+      }
     },
 
-    // CommonListView 测试方法
-    handleListSelectionChanged(selectedItems) {
-      this.selectedListItems = selectedItems
-      console.log('列表选择变化:', selectedItems.map(item => item.name))
+    // 清空日志
+    clearLogs() {
+      this.logs = []
     },
 
-    handleListItemClick(item, event) {
-      console.log('列表项目点击:', item.name)
-    },
-
-    handleListEmptyClick(event) {
-      console.log('列表空白区域点击')
-      this.selectedListItems = []
-    },
-
-    handleListContextMenu(items, selectedItems, event) {
-      console.log('列表空白区域右键菜单:', { items, selectedItems })
-      this.$message.info('空白区域右键菜单')
-    },
-
-    handleListItemContextMenu(item, selectedItems, event) {
-      console.log('列表项目右键菜单:', { item: item.name, selectedItems: selectedItems.map(i => i.name) })
-      this.$message.info(`项目右键菜单: ${item.name}`)
+    // 切换框选启用状态
+    toggleEnabled() {
+      this.enabled = !this.enabled
+      this.addLog('toggle', `框选${this.enabled ? '启用' : '禁用'}`, '')
     }
   }
 }
@@ -184,51 +165,69 @@ export default {
   margin: 0 auto;
 }
 
-.test-section {
-  margin-bottom: 40px;
-  border: 1px solid #e0e0e0;
+.test-info {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
   border-radius: 8px;
-  padding: 20px;
+  padding: 15px;
+  margin-bottom: 20px;
 }
 
-.test-section h3 {
-  margin-top: 0;
-  margin-bottom: 16px;
-  color: #333;
+.test-info ul {
+  margin: 10px 0 0 20px;
+}
+
+.test-controls {
+  margin-bottom: 20px;
+  display: flex;
+  gap: 10px;
+}
+
+.btn {
+  padding: 8px 16px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn:hover {
+  background: #0056b3;
 }
 
 .test-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 16px;
-  padding: 16px;
-  background: #f8f9fa;
+  border: 2px solid #dee2e6;
   border-radius: 8px;
-  min-height: 200px;
+  padding: 20px;
+  margin-bottom: 20px;
+  background: white;
+}
+
+.test-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 15px;
+  padding: 20px;
 }
 
 .test-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 12px 8px;
-  border-radius: 8px;
+  padding: 15px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  background: #f8f9fa;
   cursor: pointer;
-  transition: all 0.2s ease;
-  background: white;
-  border: 2px solid transparent;
-  min-height: 80px;
+  transition: all 0.2s;
+  user-select: none;
 }
 
 .test-item:hover {
-  background: #e3f2fd;
-  border-color: #2196f3;
-}
-
-.test-item.selected {
-  background: #2196f3 !important;
-  color: white;
-  border-color: #1976d2;
+  background: #e9ecef;
+  border-color: #adb5bd;
 }
 
 .item-icon {
@@ -239,71 +238,133 @@ export default {
 .item-name {
   font-size: 12px;
   text-align: center;
-  word-wrap: break-word;
-  line-height: 1.2;
+  word-break: break-word;
 }
 
-.selection-info {
-  margin-top: 16px;
-  padding: 12px;
-  background: #e8f5e8;
-  border-radius: 4px;
-  font-size: 14px;
-  color: #2e7d32;
+.test-logs {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  background: white;
 }
 
-.context-menu-info {
-  padding: 16px;
-  background: #fff3cd;
-  border-radius: 4px;
-  border: 1px solid #ffeaa7;
+.test-logs h3 {
+  margin: 0;
+  padding: 15px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  border-radius: 8px 8px 0 0;
 }
 
-.context-menu-info p {
-  margin: 8px 0;
-  color: #856404;
+.log-container {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 10px;
 }
 
-/* CommonListView 样式调整 */
-:deep(.common-list-view) {
-  height: 300px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-:deep(.list-body) {
-  height: 250px;
-}
-
-:deep(.list-item) {
-  padding: 8px 12px;
-}
-
-:deep(.item-content) {
+.log-item {
   display: flex;
-  align-items: center;
-  width: 100%;
-}
-
-:deep(.item-cell) {
-  padding: 4px 8px;
+  gap: 10px;
+  padding: 8px;
+  margin-bottom: 5px;
+  border-radius: 4px;
+  font-family: monospace;
   font-size: 12px;
 }
 
-:deep(.name-cell) {
+.log-item.selection-finished {
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+  color: #155724;
+}
+
+.log-item.selection-cleared {
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+}
+
+.log-item.empty-click {
+  background: #d1ecf1;
+  border: 1px solid #bee5eb;
+  color: #0c5460;
+}
+
+.log-item.toggle {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  color: #856404;
+}
+
+.log-time {
+  color: #6c757d;
+  min-width: 80px;
+}
+
+.log-event {
+  font-weight: bold;
+  min-width: 120px;
+}
+
+.log-data {
   flex: 1;
-  min-width: 200px;
+  word-break: break-all;
 }
 
-:deep(.size-cell) {
-  width: 80px;
+/* 深色主题支持 */
+[data-theme="dark"] .test-info {
+  background: #2d3748;
+  border-color: #4a5568;
+  color: #e2e8f0;
 }
 
-:deep(.type-cell) {
-  width: 100px;
+[data-theme="dark"] .test-container {
+  background: #2d3748;
+  border-color: #4a5568;
 }
 
-:deep(.date-cell) {
-  width: 120px;
+[data-theme="dark"] .test-item {
+  background: #4a5568;
+  border-color: #718096;
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .test-item:hover {
+  background: #718096;
+  border-color: #a0aec0;
+}
+
+[data-theme="dark"] .test-logs {
+  background: #2d3748;
+  border-color: #4a5568;
+}
+
+[data-theme="dark"] .test-logs h3 {
+  background: #4a5568;
+  border-color: #718096;
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .log-item.selection-finished {
+  background: #22543d;
+  border-color: #38a169;
+  color: #9ae6b4;
+}
+
+[data-theme="dark"] .log-item.selection-cleared {
+  background: #742a2a;
+  border-color: #e53e3e;
+  color: #feb2b2;
+}
+
+[data-theme="dark"] .log-item.empty-click {
+  background: #2a4365;
+  border-color: #3182ce;
+  color: #90cdf4;
+}
+
+[data-theme="dark"] .log-item.toggle {
+  background: #744210;
+  border-color: #d69e2e;
+  color: #faf089;
 }
 </style> 

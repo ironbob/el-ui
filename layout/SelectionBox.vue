@@ -46,11 +46,7 @@ export default {
       type: Boolean,
       default: true
     },
-    // 当前选中的元素
-    selectedElements: {
-      type: Array,
-      default: () => []
-    }
+
   },
 
   data() {
@@ -62,7 +58,8 @@ export default {
         startY: 0,
         currentX: 0,
         currentY: 0
-      }
+      },
+      selectedElements:[]
     }
   },
 
@@ -82,12 +79,18 @@ export default {
       if (!this.$refs.container.contains(event.target)) {
         return
       }
-
+      // 开始框选时清空之前的选择
+      this.$emit('selection-cleared')
       this.startSelection(event)
     },
 
     // 处理点击事件
     handleClick(event) {
+      // 如果正在进行框选，不处理点击事件
+      if (this.selectionBox.active) {
+        return
+      }
+
       // 检查是否点击在可选择元素上
       const selectableElement = event.target.closest('[data-selectable]')
       if (selectableElement) {
@@ -98,7 +101,7 @@ export default {
       // 检查是否点击在容器内
       if (this.$refs.container.contains(event.target)) {
         this.$emit('empty-click', event)
-        this.$emit('selection-changed', [])
+
       }
     },
 
@@ -134,8 +137,8 @@ export default {
       this.selectionBox.currentX = event.clientX - rect.left
       this.selectionBox.currentY = event.clientY - rect.top
 
-      // 计算选择区域内的元素
-      this.updateSelection()
+      // 只更新选择框显示，不发送选择变化事件
+      this.updateSelectionDisplay()
     },
 
     // 处理鼠标释放
@@ -148,13 +151,20 @@ export default {
       document.removeEventListener('mousemove', this.handleMouseMove)
       document.removeEventListener('mouseup', this.handleMouseUp)
 
-      // 最终更新选择
+      // 最终更新选择并发送结束事件
       this.updateSelection()
+      this.$emit('selection-finished', this.selectedElements)
     },
 
-    // 更新选择
-    updateSelection() {
+    // 更新选择显示（仅用于视觉反馈，不发送事件）
+    updateSelectionDisplay() {
       const selectionRect = this.getSelectionRect()
+      
+      // 如果选择区域太小（小于5x5像素），认为是点击而不是框选
+      if (selectionRect.width < 5 && selectionRect.height < 5) {
+        return
+      }
+      
       const selectedElements = []
 
       // 获取所有可选择元素
@@ -169,8 +179,35 @@ export default {
         }
       })
 
-      this.$emit('selection-changed', selectedElements)
-      // console.log('SelectionBox: Selection changed:', selectedElements)
+      this.selectedElements = selectedElements
+    },
+
+    // 更新选择（最终计算，发送结束事件）
+    updateSelection() {
+      const selectionRect = this.getSelectionRect()
+      
+      // 如果选择区域太小（小于5x5像素），认为是点击而不是框选
+      if (selectionRect.width < 5 && selectionRect.height < 5) {
+        this.selectedElements = []
+        return
+      }
+      
+      const selectedElements = []
+
+      // 获取所有可选择元素
+      const selectableElements = this.getSelectableElements()
+      
+      selectableElements.forEach(element => {
+        if (this.isElementInSelection(element, selectionRect)) {
+          const key = this.getElementKey(element)
+          if (key) {
+            selectedElements.push({ element, key })
+          }
+        }
+      })
+
+      this.selectedElements = selectedElements
+      // console.log('SelectionBox: Final selection:', selectedElements)
     },
 
     // 获取选择矩形
