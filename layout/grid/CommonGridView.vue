@@ -285,35 +285,59 @@ export default {
 }
 
 .grid-container {
-  @apply w-full h-full overflow-y-auto relative p-4;
+  @apply w-full overflow-y-auto relative p-4;
   display: grid;
-  gap: 12px;
 }
 
-/* 小图标网格 - 接近正方形 */
+/* 小图标网格 - 完全正方形 */
 .grid-size-small .grid-container {
-  grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
+  grid-template-columns: repeat(auto-fill, 75px);
   gap: 6px;
   padding: 4px;
+  justify-content: start;
 }
-
 .grid-size-small .grid-item {
-  aspect-ratio: 1;
-  max-height: 75px;
+  width: 75px;
+  height: 75px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
 /* 中等图标网格 */
 .grid-size-medium .grid-container {
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: 8px;
-  padding: 4px;
+  grid-template-columns: repeat(auto-fill, 110px);
+  gap: 10px;
+  padding: 6px;
+  justify-content: start;
+}
+.grid-size-medium .grid-item {
+  width: 110px;
+  height: 110px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
-/* 大图标网格 */
+/* 大图标网格 - 更大正方形 */
 .grid-size-large .grid-container {
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
-  padding: 4px;
+  grid-template-columns: repeat(auto-fill, 200px);
+  gap: 16px;
+  padding: 8px;
+  justify-content: start;
+}
+.grid-size-large .grid-item {
+  width: 200px;
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
 .grid-item {
