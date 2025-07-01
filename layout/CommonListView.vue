@@ -22,65 +22,62 @@
     
     <!-- 列表主体容器 -->
     <div class="list-body-container">
-      <!-- 列表内容 -->
-      <div 
-        ref="listBody"
-        class="list-body" 
-        @mousedown="handleMouseDown" 
-        @click="handleClick" 
-        @contextmenu="handleContextMenu"
+      <!-- 使用独立的框选控件 -->
+      <SelectionBox
+        :enabled="enableBoxSelection"
+        :get-selectable-elements="getSelectableElements"
+        :get-element-key="getElementKey"
+        :multi-select="multiSelect"
+        @selection-changed="handleBoxSelectionChanged"
+        @empty-click="handleEmptyClick"
       >
-        <!-- 框选区域 -->
-        <div
-          v-if="selectionBox.active"
-          class="selection-box"
-          :style="{
-            left: Math.min(selectionBox.startX, selectionBox.currentX) + 'px',
-            top: Math.min(selectionBox.startY, selectionBox.currentY) + 'px',
-            width: Math.abs(selectionBox.currentX - selectionBox.startX) + 'px',
-            height: Math.abs(selectionBox.currentY - selectionBox.startY) + 'px'
-          }"
-        ></div>
-
-        <!-- 列表项 -->
-        <div
-          v-for="(item, index) in items"
-          :key="getItemKey(item)"
-          class="list-item"
-          :class="{
-            'even-row': index % 2 === 1,
-            'selected': isItemSelected(item),
-            'hover:bg-gray-50 dark:hover:bg-gray-700': !isItemSelected(item)
-          }"
-          :data-item-key="getItemKey(item)"
-          @click="handleItemClick(item, $event)"
-          @dblclick="$emit('item-double-click', item)"
-          @contextmenu="handleItemContextMenu(item, $event)"
+        <!-- 列表内容 -->
+        <div 
+          ref="listBody"
+          class="list-body" 
+          @contextmenu="handleContextMenu"
         >
-          <slot name="item" :item="item" :index="index" :selected="isItemSelected(item)">
-            <!-- 默认列表项内容 -->
-            <div class="item-content">
-              <div class="item-cell name-cell">
-                <div class="item-icon">
-                  <slot name="icon" :item="item">
-                    <div class="w-5 h-5 bg-gray-300 rounded"></div>
-                  </slot>
+          <!-- 列表项 -->
+          <div
+            v-for="(item, index) in items"
+            :key="getItemKey(item)"
+            class="list-item"
+            :class="{
+              'even-row': index % 2 === 1,
+              'selected': isItemSelected(item),
+              'hover:bg-gray-50 dark:hover:bg-gray-700': !isItemSelected(item)
+            }"
+            :data-item-key="getItemKey(item)"
+            :data-selectable="true"
+            @click="handleItemClick(item, $event)"
+            @dblclick="$emit('item-double-click', item)"
+            @contextmenu="handleItemContextMenu(item, $event)"
+          >
+            <slot name="item" :item="item" :index="index" :selected="isItemSelected(item)">
+              <!-- 默认列表项内容 -->
+              <div class="item-content">
+                <div class="item-cell name-cell">
+                  <div class="item-icon">
+                    <slot name="icon" :item="item">
+                      <div class="w-5 h-5 bg-gray-300 rounded"></div>
+                    </slot>
+                  </div>
+                  <span class="item-name">{{ getItemName(item) }}</span>
                 </div>
-                <span class="item-name">{{ getItemName(item) }}</span>
+                <div class="item-cell size-cell">
+                  {{ getItemSize(item) }}
+                </div>
+                <div class="item-cell type-cell">
+                  {{ getItemType(item) }}
+                </div>
+                <div class="item-cell date-cell">
+                  {{ getItemDate(item) }}
+                </div>
               </div>
-              <div class="item-cell size-cell">
-                {{ getItemSize(item) }}
-              </div>
-              <div class="item-cell type-cell">
-                {{ getItemType(item) }}
-              </div>
-              <div class="item-cell date-cell">
-                {{ getItemDate(item) }}
-              </div>
-            </div>
-          </slot>
+            </slot>
+          </div>
         </div>
-      </div>
+      </SelectionBox>
 
       <!-- 右键菜单 -->
       <slot name="context-menu" :visible="contextMenuVisible" :position="contextMenuPosition" :items="contextMenuItems">
@@ -103,8 +100,13 @@
 </template>
 
 <script>
+import SelectionBox from './SelectionBox.vue'
+
 export default {
   name: 'CommonListView',
+  components: {
+    SelectionBox
+  },
   props: {
     // 列表数据
     items: {
@@ -138,7 +140,7 @@ export default {
         return item.size ? this.formatFileSize(item.size) : '-'
       }
     },
-    // 获取项目类型的函数
+    // 获取项目类型的的函数
     getItemType: {
       type: Function,
       default: (item) => item.type || '文件'
@@ -164,14 +166,6 @@ export default {
 
   data() {
     return {
-      // 框选状态
-      selectionBox: {
-        active: false,
-        startX: 0,
-        startY: 0,
-        currentX: 0,
-        currentY: 0
-      },
       // 右键菜单状态
       contextMenuVisible: false,
       contextMenuPosition: { x: 0, y: 0 },
@@ -229,23 +223,35 @@ export default {
       return this.selectedItems.some(selected => this.getItemKey(selected) === this.getItemKey(item))
     },
 
-    // 处理鼠标按下事件
-    handleMouseDown(event) {
-      // 只有在点击空白区域且启用框选时才开始框选
-      if (this.enableBoxSelection && 
-          event.button === 0 && 
-          !event.target.closest('.list-item')) {
-        this.startBoxSelection(event)
-      }
+    // 获取可选择元素列表（供 SelectionBox 使用）
+    getSelectableElements() {
+      return this.$el.querySelectorAll('[data-selectable]')
     },
 
-    // 处理点击事件
-    handleClick(event) {
-      // 检查是否点击在列表项上
-      if (!event.target.closest('.list-item')) {
-        this.$emit('empty-click', event)
-        this.$emit('selection-changed', [])
-      }
+    // 获取元素唯一标识（供 SelectionBox 使用）
+    getElementKey(element) {
+      return element.dataset.itemKey
+    },
+
+    // 处理框选变化
+    handleBoxSelectionChanged(selectedElements) {
+      const selectedItems = []
+      
+      selectedElements.forEach(({ key }) => {
+        const item = this.items.find(item => this.getItemKey(item) === key)
+        if (item) {
+          selectedItems.push(item)
+        }
+      })
+
+      this.$emit('selection-changed', selectedItems)
+      console.log("handleBoxSelectionChanged", selectedItems)
+    },
+
+    // 处理空白区域点击
+    handleEmptyClick(event) {
+      this.$emit('empty-click', event)
+      this.$emit('selection-changed', [])
     },
 
     // 处理右键菜单
@@ -334,110 +340,6 @@ export default {
       this.$emit('item-context-menu', item, this.selectedItems, event)
     },
 
-    // 开始框选
-    startBoxSelection(event) {
-      const listBodyElement = this.$refs.listBody
-      if (!listBodyElement) return
-
-      const rect = listBodyElement.getBoundingClientRect()
-      
-      this.selectionBox.active = true
-      this.selectionBox.startX = event.clientX - rect.left
-      this.selectionBox.startY = event.clientY - rect.top
-      this.selectionBox.currentX = event.clientX - rect.left
-      this.selectionBox.currentY = event.clientY - rect.top
-
-      // 添加全局事件监听器
-      document.addEventListener('mousemove', this.handleBoxSelectionMove)
-      document.addEventListener('mouseup', this.handleBoxSelectionEnd)
-
-      event.preventDefault()
-    },
-
-    // 框选移动
-    handleBoxSelectionMove(event) {
-      if (!this.selectionBox.active) return
-
-      const listBodyElement = this.$refs.listBody
-      if (!listBodyElement) return
-
-      const rect = listBodyElement.getBoundingClientRect()
-      
-      this.selectionBox.currentX = event.clientX - rect.left
-      this.selectionBox.currentY = event.clientY - rect.top
-
-      // 计算选择区域内的项目
-      this.updateBoxSelection()
-    },
-
-    // 结束框选
-    handleBoxSelectionEnd() {
-      if (!this.selectionBox.active) return
-
-      this.selectionBox.active = false
-
-      // 移除全局事件监听器
-      document.removeEventListener('mousemove', this.handleBoxSelectionMove)
-      document.removeEventListener('mouseup', this.handleBoxSelectionEnd)
-
-      // 最终更新选择
-      this.updateBoxSelection()
-    },
-
-    // 更新框选
-    updateBoxSelection() {
-      const selectionRect = this.getSelectionRect()
-      const selectedItems = []
-
-      this.items.forEach(item => {
-        const itemElement = this.$el.querySelector(`[data-item-key="${this.getItemKey(item)}"]`)
-        if (itemElement && this.isElementInSelection(itemElement, selectionRect)) {
-          selectedItems.push(item)
-        }
-      })
-
-      this.$emit('selection-changed', selectedItems)
-    },
-
-    // 获取选择矩形
-    getSelectionRect() {
-      const startX = Math.min(this.selectionBox.startX, this.selectionBox.currentX)
-      const startY = Math.min(this.selectionBox.startY, this.selectionBox.currentY)
-      const endX = Math.max(this.selectionBox.startX, this.selectionBox.currentX)
-      const endY = Math.max(this.selectionBox.startY, this.selectionBox.currentY)
-
-      return {
-        left: startX,
-        top: startY,
-        right: endX,
-        bottom: endY,
-        width: endX - startX,
-        height: endY - startY
-      }
-    },
-
-    // 检查元素是否在选择区域内
-    isElementInSelection(element, selectionRect) {
-      const listBodyElement = this.$refs.listBody
-      if (!listBodyElement) return false
-
-      const listBodyRect = listBodyElement.getBoundingClientRect()
-      const elementRect = element.getBoundingClientRect()
-
-      // 将元素位置转换为相对于 list-body 的坐标
-      const relativeElementRect = {
-        left: elementRect.left - listBodyRect.left,
-        right: elementRect.right - listBodyRect.left,
-        top: elementRect.top - listBodyRect.top,
-        bottom: elementRect.bottom - listBodyRect.top
-      }
-
-      return !(relativeElementRect.right < selectionRect.left ||
-               relativeElementRect.left > selectionRect.right ||
-               relativeElementRect.bottom < selectionRect.top ||
-               relativeElementRect.top > selectionRect.bottom)
-    },
-
     // 滚动到指定项目
     scrollToItem(item) {
       const itemElement = this.$el.querySelector(`[data-item-key="${this.getItemKey(item)}"]`)
@@ -506,10 +408,6 @@ export default {
 
 .list-body {
   @apply w-full h-full overflow-y-auto relative;
-}
-
-.selection-box {
-  @apply absolute border border-blue-500 bg-blue-500 bg-opacity-10 pointer-events-none z-10;
 }
 
 .list-item {
